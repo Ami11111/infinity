@@ -10,6 +10,30 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/bin/compilation_config.cppm.in ${CMAK
 
 add_subdirectory(parser)
 
+### S3
+# Set the AWS service components used by this project.
+set(SERVICE_COMPONENTS s3)
+
+# Use the MSVC variable to determine if this is a Windows build.
+set(WINDOWS_BUILD ${MSVC})
+
+if (WINDOWS_BUILD) # Set the location where CMake can find the installed libraries for the AWS SDK.
+    string(REPLACE ";" "/aws-cpp-sdk-all;" SYSTEM_MODULE_PATH "${CMAKE_SYSTEM_PREFIX_PATH}/aws-cpp-sdk-all")
+    list(APPEND CMAKE_PREFIX_PATH ${SYSTEM_MODULE_PATH})
+endif ()
+
+# Find the AWS SDK for C++ package.
+find_package(AWSSDK REQUIRED COMPONENTS ${SERVICE_COMPONENTS})
+
+if (WINDOWS_BUILD AND AWSSDK_INSTALL_AS_SHARED_LIBS)
+    # Copy relevant AWS SDK for C++ libraries into the current binary directory for running and debugging.
+
+    # set(BIN_SUB_DIR "/Debug") # if you are building from the command line you may need to uncomment this
+    # and set the proper subdirectory to the executables' location.
+
+    AWSSDK_CPY_DYN_LIBS(SERVICE_COMPONENTS "" ${CMAKE_CURRENT_BINARY_DIR}${BIN_SUB_DIR})
+endif ()
+
 ### Infinity
 
 ### WARNING: DONT MOVE FOLLOWING COMMAND TO OTHER PLACE.
@@ -225,6 +249,8 @@ add_library(infinity_core
         ${admin_cpp}
         ${network_cpp}
 )
+message(status " ----------------- ${AWSSDK_LINK_LIBRARIES}")
+#target_link_libraries(infinity_core libaws-cpp-sdk-s3.so libaws-cpp-sdk-core.so)
 
 target_sources(infinity_core
         PUBLIC
@@ -335,6 +361,7 @@ target_link_libraries(infinity
         arrow.a
         snappy.a
         ${JEMALLOC_STATIC_LIB}
+        ${AWSSDK_LINK_LIBRARIES}
 )
 target_link_directories(infinity PUBLIC "${CMAKE_BINARY_DIR}/lib")
 target_link_directories(infinity PUBLIC "${CMAKE_BINARY_DIR}/third_party/oatpp/src/")
@@ -388,6 +415,7 @@ target_link_libraries(embedded_infinity_ext PRIVATE
         thriftnb.a
         snappy.a
         ${JEMALLOC_STATIC_LIB}
+        ${AWSSDK_LINK_LIBRARIES}
 )
 
 # WARN: python modules shall not link to static libstdc++!!!
@@ -501,7 +529,8 @@ add_executable(unit_test
 )
 
 set_target_properties(unit_test PROPERTIES OUTPUT_NAME test_main)
-
+add_dependencies(unit_test oatpp)
+find_package(ZLIB QUIET)
 target_link_libraries(unit_test
         gtest
         gtest_main
@@ -526,8 +555,10 @@ target_link_libraries(unit_test
         thrift.a
         thriftnb.a
         event.a
+        ${AWSSDK_LINK_LIBRARIES}
 )
 
+target_link_directories(unit_test PUBLIC "/usr/local/lib")
 target_link_directories(unit_test PUBLIC "${CMAKE_BINARY_DIR}/lib")
 target_link_directories(unit_test PUBLIC "${CMAKE_BINARY_DIR}/third_party/arrow/")
 target_link_directories(unit_test PUBLIC "${CMAKE_BINARY_DIR}/third_party/snappy/")
