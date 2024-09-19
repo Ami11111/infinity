@@ -84,3 +84,5 @@ add_library(inih
         inih/cpp/INIReader.cpp
         inih/ini.c
 )
+
+add_subdirectory(curl)
