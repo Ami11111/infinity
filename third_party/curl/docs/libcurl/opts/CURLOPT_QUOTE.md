@@ -37,9 +37,7 @@ of 'struct curl_slist' structs properly filled in with text strings. Use
 curl_slist_append(3) to append strings (commands) to the list, and clear
 the entire list afterwards with curl_slist_free_all(3).
 
-Using this option multiple times makes the last set list override the previous
-ones. Set it to NULL to disable its use again. libcurl does not copy the list,
-it needs to be kept around until after the transfer has completed.
+Disable this operation again by setting a NULL to this option.
 
 When speaking to an FTP server, prefix the command with an asterisk (*) to
 make libcurl continue even if the command fails as by default libcurl stops at
@@ -153,8 +151,6 @@ int main(void)
 
     curl_easy_cleanup(curl);
   }
-
-  curl_slist_free_all(cmdlist);
 }
 ~~~
 

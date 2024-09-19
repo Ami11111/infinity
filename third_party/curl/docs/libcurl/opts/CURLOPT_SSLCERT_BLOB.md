@@ -15,7 +15,6 @@ TLS-backend:
   - Secure Transport
   - Schannel
   - mbedTLS
-  - wolfSSL
 Added-in: 7.71.0
 ---
 

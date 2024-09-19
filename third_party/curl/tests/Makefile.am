@@ -22,14 +22,7 @@
 #
 ###########################################################################
 
-if BUILD_DOCS
-# if we disable man page building, ignore these
-RUNTESTS_DOCS = runtests.1
-TESTCURL_DOCS = testcurl.1
-MANFILES = $(RUNTESTS_DOCS) $(TESTCURL_DOCS)
-endif
-
-CURLPAGES = runtests.md testcurl.md
+MANDISTPAGES = runtests.1.dist testcurl.1.dist
 
 # scripts used in test cases
 TESTSCRIPTS = \
@@ -50,7 +43,6 @@ TESTSCRIPTS = \
  test1486.pl  \
  test1488.pl  \
  test1544.pl  \
- test1707.pl  \
  test971.pl
 
 EXTRA_DIST =        \
@@ -59,6 +51,7 @@ EXTRA_DIST =        \
  README.md          \
  appveyor.pm        \
  azure.pm           \
+ conftest.py        \
  devtest.pl         \
  dictserver.py      \
  directories.pm     \
@@ -78,6 +71,7 @@ EXTRA_DIST =        \
  requirements.txt   \
  rtspserver.pl      \
  runner.pm          \
+ runtests.1         \
  runtests.pl        \
  secureserver.pl    \
  serverhelp.pm      \
@@ -86,14 +80,14 @@ EXTRA_DIST =        \
  sshhelp.pm         \
  sshserver.pl       \
  stunnel.pem        \
+ testcurl.1         \
  testcurl.pl        \
  testutil.pm        \
  tftpserver.pl      \
  util.py            \
  valgrind.pm        \
  valgrind.supp      \
- $(TESTSCRIPTS)     \
- $(CURLPAGES)
+ $(TESTSCRIPTS)
 
 DISTCLEANFILES = configurehelp.pm
 
@@ -133,15 +127,8 @@ TEST_E = -a -e
 TEST_NF = -a -p ~flaky ~timing-dependent
 
 # special CI target derived from nonflaky with CI-specific flags
-TEST_CI = $(TEST_NF) -r -rm -j2
+TEST_CI = $(TEST_NF) -r -rm
 endif
-
-CD2NROFF = $(top_srcdir)/scripts/cd2nroff $< >$@
-
-SUFFIXES = .1 .md
-
-.md.1:
-	$(CD2)$(CD2NROFF)
 
 # make sure that PERL is pointing to an executable
 perlcheck:
@@ -177,7 +164,7 @@ checksrc:
 	(cd server && $(MAKE) checksrc)
 	(cd http && $(MAKE) checksrc)
 
-all-local: $(MANFILES)
-
-distclean:
-	rm -f $(MANFILES)
+if DEBUGBUILD
+# for debug builds, we scan the sources on all regular make invokes
+all-local: checksrc
+endif

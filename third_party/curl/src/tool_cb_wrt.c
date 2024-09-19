@@ -30,6 +30,8 @@
 
 #include <sys/stat.h>
 
+#define ENABLE_CURLX_PRINTF
+/* use our own printf() functions */
 #include "curlx.h"
 
 #include "tool_cfgable.h"
@@ -54,11 +56,14 @@ bool tool_create_output_file(struct OutStruct *outs,
 {
   struct GlobalConfig *global;
   FILE *file = NULL;
-  const char *fname = outs->filename;
+  char *fname = outs->filename;
   DEBUGASSERT(outs);
   DEBUGASSERT(config);
   global = config->global;
-  DEBUGASSERT(fname && *fname);
+  if(!fname || !*fname) {
+    warnf(global, "Remote filename has no length");
+    return FALSE;
+  }
 
   if(config->file_clobber_mode == CLOBBER_ALWAYS ||
      (config->file_clobber_mode == CLOBBER_DEFAULT &&
@@ -93,7 +98,7 @@ bool tool_create_output_file(struct OutStruct *outs,
             (errno == EEXIST || errno == EISDIR) &&
             /* because we keep having files that already exist */
             next_num < 100 /* and we have not reached the retry limit */ ) {
-        msnprintf(newname + len + 1, 12, "%d", next_num);
+        curlx_msnprintf(newname + len + 1, 12, "%d", next_num);
         next_num++;
         do {
           fd = open(newname, O_CREAT | O_WRONLY | O_EXCL | O_BINARY, OPENMODE);
@@ -214,7 +219,7 @@ size_t tool_write_cb(char *buffer, size_t sz, size_t nmemb, void *userdata)
 
 #ifdef _WIN32
   fhnd = _get_osfhandle(fileno(outs->stream));
-  /* if Windows console then UTF-8 must be converted to UTF-16 */
+  /* if windows console then UTF-8 must be converted to UTF-16 */
   if(isatty(fileno(outs->stream)) &&
      GetConsoleScreenBufferInfo((HANDLE)fhnd, &console_info)) {
     wchar_t *wc_buf;

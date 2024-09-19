@@ -80,11 +80,13 @@ include_directories(
 file(GLOB_RECURSE HeaderFileList "${CMAKE_CURRENT_SOURCE_DIR}/include/*")
 file(GLOB_RECURSE SourceFileList "${CMAKE_CURRENT_SOURCE_DIR}/src/*")
 add_library(${PROJECT_NAME} SHARED ${HeaderFileList} ${SourceFileList})
-target_link_libraries(${PROJECT_NAME} libcurl.so)
+message(status "*********** ${PROJECT_NAME}")
+target_link_libraries(${PROJECT_NAME} libcurl_static)
+
 set_target_properties(${PROJECT_NAME} PROPERTIES SOVERSION 1 VERSION 1.0.0)
 
 add_library(${PROJECT_NAME}_static STATIC ${HeaderFileList} ${SourceFileList})
-
+target_include_directories(${PROJECT_NAME}_static PUBLIC "${CMAKE_SOURCE_DIR}/third_party/curl/include")
 # Make sure that on unix-platforms shared and static libraries have
 # the same root name, but different suffixes.
 #

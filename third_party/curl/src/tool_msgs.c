@@ -23,6 +23,8 @@
  ***************************************************************************/
 #include "tool_setup.h"
 
+#define ENABLE_CURLX_PRINTF
+/* use our own printf() functions */
 #include "curlx.h"
 
 #include "tool_cfgable.h"
@@ -53,7 +55,7 @@ static void voutf(struct GlobalConfig *config,
     char *ptr;
     char *print_buffer;
 
-    print_buffer = vaprintf(fmt, ap);
+    print_buffer = curlx_mvaprintf(fmt, ap);
     if(!print_buffer)
       return;
     len = strlen(print_buffer);

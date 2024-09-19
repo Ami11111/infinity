@@ -40,8 +40,6 @@ Graduation requirements:
 
 - HTTP/1 and HTTP/2 support, including multiplexing
 
-(Hyper is marked for deprecation. It cannot graduate.)
-
 ###  HTTP/3 support (non-ngtcp2 backends)
 
 Graduation requirements:
@@ -51,7 +49,7 @@ Graduation requirements:
 
 - Using HTTP/3 with the given build should perform without risking busy-loops
 
-### The Rustls backend
+### The rustls backend
 
 Graduation requirements:
 

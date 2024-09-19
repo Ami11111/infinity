@@ -37,7 +37,7 @@ HOME=$(pwd)
 cd "$HOME"
 
 KEYSIZE=2048
-DURATION=300
+DURATION=3000
 # The -sha256 option was introduced in OpenSSL 1.0.1
 DIGESTALGO=-sha256
 

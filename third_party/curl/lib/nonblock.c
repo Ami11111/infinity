@@ -47,7 +47,7 @@ int curlx_nonblock(curl_socket_t sockfd,    /* operate on this */
                    int nonblock   /* TRUE or FALSE */)
 {
 #if defined(HAVE_FCNTL_O_NONBLOCK)
-  /* most recent Unix versions */
+  /* most recent unix versions */
   int flags;
   flags = sfcntl(sockfd, F_GETFL, 0);
   if(flags < 0)
@@ -65,7 +65,7 @@ int curlx_nonblock(curl_socket_t sockfd,    /* operate on this */
 
 #elif defined(HAVE_IOCTL_FIONBIO)
 
-  /* older Unix versions */
+  /* older unix versions */
   int flags = nonblock ? 1 : 0;
   return ioctl(sockfd, FIONBIO, &flags);
 

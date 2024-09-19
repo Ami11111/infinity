@@ -7,7 +7,7 @@ Source: libcurl
 See-also:
   - CURLOPT_SSL_FALSESTART (3)
 Protocol:
-  - TCP
+  - All
 Added-in: 7.49.0
 ---
 

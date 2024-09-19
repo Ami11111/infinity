@@ -92,8 +92,6 @@ events such as the socket being clear to write without blocking.
 # EXAMPLE
 
 ~~~c
-extern void handle_fd(int);
-
 int main(void)
 {
   CURL *easy_handle;

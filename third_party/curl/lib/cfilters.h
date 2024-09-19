@@ -30,7 +30,6 @@ struct Curl_cfilter;
 struct Curl_easy;
 struct Curl_dns_entry;
 struct connectdata;
-struct ip_quadruple;
 
 /* Callback to destroy resources held by this filter instance.
  * Implementations MUST NOT chain calls to cf->next.
@@ -106,7 +105,6 @@ typedef ssize_t  Curl_cft_send(struct Curl_cfilter *cf,
                                struct Curl_easy *data, /* transfer */
                                const void *buf,        /* data to write */
                                size_t len,             /* amount to write */
-                               bool eos,               /* last chunk */
                                CURLcode *err);         /* error to return */
 
 typedef ssize_t  Curl_cft_recv(struct Curl_cfilter *cf,
@@ -142,7 +140,6 @@ typedef CURLcode Curl_cft_conn_keep_alive(struct Curl_cfilter *cf,
 /* update conn info at connection and data */
 #define CF_CTRL_CONN_INFO_UPDATE (256+0) /* 0          NULL     ignored */
 #define CF_CTRL_FORGET_SOCKET    (256+1) /* 0          NULL     ignored */
-#define CF_CTRL_FLUSH            (256+2) /* 0          NULL     first fail */
 
 /**
  * Handle event/control for the filter.
@@ -165,9 +162,6 @@ typedef CURLcode Curl_cft_cntrl(struct Curl_cfilter *cf,
  *                   were received.
  *                   -1 if not determined yet.
  * - CF_QUERY_SOCKET: the socket used by the filter chain
- * - CF_QUERY_NEED_FLUSH: TRUE iff any of the filters have unsent data
- * - CF_QUERY_IP_INFO: res1 says if connection used IPv6, res2 is the
- *                   ip quadruple
  */
 /*      query                             res1       res2     */
 #define CF_QUERY_MAX_CONCURRENT     1  /* number     -        */
@@ -176,8 +170,6 @@ typedef CURLcode Curl_cft_cntrl(struct Curl_cfilter *cf,
 #define CF_QUERY_TIMER_CONNECT      4  /* -          struct curltime */
 #define CF_QUERY_TIMER_APPCONNECT   5  /* -          struct curltime */
 #define CF_QUERY_STREAM_ERROR       6  /* error code - */
-#define CF_QUERY_NEED_FLUSH         7  /* TRUE/FALSE - */
-#define CF_QUERY_IP_INFO            8  /* TRUE/FALSE struct ip_quadruple */
 
 /**
  * Query the cfilter for properties. Filters ignorant of a query will
@@ -249,8 +241,7 @@ void     Curl_cf_def_adjust_pollset(struct Curl_cfilter *cf,
 bool     Curl_cf_def_data_pending(struct Curl_cfilter *cf,
                                   const struct Curl_easy *data);
 ssize_t  Curl_cf_def_send(struct Curl_cfilter *cf, struct Curl_easy *data,
-                          const void *buf, size_t len, bool eos,
-                          CURLcode *err);
+                          const void *buf, size_t len, CURLcode *err);
 ssize_t  Curl_cf_def_recv(struct Curl_cfilter *cf, struct Curl_easy *data,
                           char *buf, size_t len, CURLcode *err);
 CURLcode Curl_cf_def_cntrl(struct Curl_cfilter *cf,
@@ -326,8 +317,7 @@ CURLcode Curl_conn_cf_connect(struct Curl_cfilter *cf,
                               bool blocking, bool *done);
 void Curl_conn_cf_close(struct Curl_cfilter *cf, struct Curl_easy *data);
 ssize_t Curl_conn_cf_send(struct Curl_cfilter *cf, struct Curl_easy *data,
-                          const void *buf, size_t len, bool eos,
-                          CURLcode *err);
+                          const void *buf, size_t len, CURLcode *err);
 ssize_t Curl_conn_cf_recv(struct Curl_cfilter *cf, struct Curl_easy *data,
                           char *buf, size_t len, CURLcode *err);
 CURLcode Curl_conn_cf_cntrl(struct Curl_cfilter *cf,
@@ -348,12 +338,6 @@ bool Curl_conn_cf_is_ssl(struct Curl_cfilter *cf);
 curl_socket_t Curl_conn_cf_get_socket(struct Curl_cfilter *cf,
                                       struct Curl_easy *data);
 
-CURLcode Curl_conn_cf_get_ip_info(struct Curl_cfilter *cf,
-                                  struct Curl_easy *data,
-                                  int *is_ipv6, struct ip_quadruple *ipquad);
-
-bool Curl_conn_cf_needs_flush(struct Curl_cfilter *cf,
-                              struct Curl_easy *data);
 
 #define CURL_CF_SSL_DEFAULT  -1
 #define CURL_CF_SSL_DISABLE  0
@@ -415,17 +399,6 @@ bool Curl_conn_data_pending(struct Curl_easy *data,
                             int sockindex);
 
 /**
- * Return TRUE if any of the connection filters at chain `sockindex`
- * have data still to send.
- */
-bool Curl_conn_needs_flush(struct Curl_easy *data, int sockindex);
-
-/**
- * Flush any pending data on the connection filters at chain `sockindex`.
- */
-CURLcode Curl_conn_flush(struct Curl_easy *data, int sockindex);
-
-/**
  * Return the socket used on data's connection for the index.
  * Returns CURL_SOCKET_BAD if not available.
  */
@@ -474,7 +447,7 @@ ssize_t Curl_cf_recv(struct Curl_easy *data, int sockindex, char *buf,
  * The error code is placed into `*code`.
  */
 ssize_t Curl_cf_send(struct Curl_easy *data, int sockindex,
-                     const void *buf, size_t len, bool eos, CURLcode *code);
+                     const void *buf, size_t len, CURLcode *code);
 
 /**
  * The easy handle `data` is being attached to `conn`. This does
@@ -522,6 +495,12 @@ void Curl_conn_ev_data_done(struct Curl_easy *data, bool premature);
  * Notify connection filters that the transfer of data is paused/unpaused.
  */
 CURLcode Curl_conn_ev_data_pause(struct Curl_easy *data, bool do_pause);
+
+/**
+ * Inform connection filters to update their info in `conn`.
+ */
+void Curl_conn_ev_update_info(struct Curl_easy *data,
+                              struct connectdata *conn);
 
 /**
  * Check if FIRSTSOCKET's cfilter chain deems connection alive.
@@ -578,7 +557,7 @@ CURLcode Curl_conn_recv(struct Curl_easy *data, int sockindex,
  * Will return CURLE_AGAIN iff blocked on sending.
  */
 CURLcode Curl_conn_send(struct Curl_easy *data, int sockindex,
-                        const void *buf, size_t blen, bool eos,
+                        const void *buf, size_t blen,
                         size_t *pnwritten);
 
 

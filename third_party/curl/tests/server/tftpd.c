@@ -81,6 +81,9 @@
 
 #include <ctype.h>
 
+#define ENABLE_CURLX_PRINTF
+/* make the curlx header define all printf() functions to use the curlx_*
+   versions instead */
 #include "curlx.h" /* from the private lib dir */
 #include "getpart.h"
 #include "util.h"
@@ -340,7 +343,7 @@ static struct tftphdr *r_init(void)
    Free it and return next buffer filled with data.
  */
 static int readit(struct testcase *test, struct tftphdr **dpp,
-                  int convert /* if true, convert to ASCII */)
+                  int convert /* if true, convert to ascii */)
 {
   struct bf *b;
 
@@ -356,11 +359,11 @@ static int readit(struct testcase *test, struct tftphdr **dpp,
 }
 
 /*
- * fill the input buffer, doing ASCII conversions if requested
+ * fill the input buffer, doing ascii conversions if requested
  * conversions are  lf -> cr, lf  and cr -> cr, nul
  */
 static void read_ahead(struct testcase *test,
-                       int convert /* if true, convert to ASCII */)
+                       int convert /* if true, convert to ascii */)
 {
   int i;
   char *p;

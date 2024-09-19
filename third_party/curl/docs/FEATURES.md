@@ -38,13 +38,13 @@ SPDX-License-Identifier: curl
  - asynchronous name resolving
  - both a push and a pull style interface
  - international domain names (IDN)
- - transfer rate limiting
+ - transfer late limiting
  - stable API and ABI
  - TCP keep alive
  - TCP Fast Open
  - DNS cache (that can be shared between transfers)
  - non-blocking single-threaded parallel transfers
- - Unix domain sockets to server or proxy
+ - unix domain sockets to server or proxy
  - DNS-over-HTTPS
  - uses non-blocking name resolves
  - selectable name resolver backend

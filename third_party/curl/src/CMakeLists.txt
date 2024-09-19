@@ -128,7 +128,8 @@ include_directories(
 )
 
 # Build curl executable
-target_link_libraries(${EXE_NAME} ${LIB_SELECTED_FOR_EXE} ${CURL_LIBS})
+message(status "=========== ${EXE_NAME} === ${LIB_SELECTED_FOR_EXE}}")
+target_link_libraries(${EXE_NAME} ${LIB_SELECTED_FOR_EXE})
 
 ################################################################################
 

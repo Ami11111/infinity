@@ -40,40 +40,29 @@ if BUILD_DOCS
 CLEANFILES = mk-ca-bundle.1 curl-config.1
 endif
 
-INTERNALDOCS =                                  \
- internals/BUFQ.md                              \
- internals/BUFREF.md                            \
- internals/CHECKSRC.md                          \
- internals/CLIENT-READERS.md                    \
- internals/CLIENT-WRITERS.md                    \
- internals/CODE_STYLE.md                        \
- internals/CONNECTION-FILTERS.md                \
- internals/DYNBUF.md                            \
- internals/HASH.md                              \
- internals/HYPER.md                             \
- internals/LLIST.md                             \
- internals/MQTT.md                              \
- internals/NEW-PROTOCOL.md                      \
- internals/README.md                            \
- internals/SPLAY.md                             \
- internals/WEBSOCKET.md
-
 EXTRA_DIST =                                    \
  $(CURLPAGES)                                   \
- $(INTERNALDOCS)                                \
+ ALTSVC.md                                      \
  BINDINGS.md                                    \
+ BUFQ.md                                        \
+ BUFREF.md                                      \
  BUG-BOUNTY.md                                  \
  BUGS.md                                        \
+ CHECKSRC.md                                    \
  CIPHERS.md                                     \
- CIPHERS-TLS12.md                               \
  CMakeLists.txt                                 \
  CODE_OF_CONDUCT.md                             \
  CODE_REVIEW.md                                 \
+ CODE_STYLE.md                                  \
+ CLIENT-READERS.md                              \
+ CLIENT-WRITERS.md                              \
+ CONNECTION-FILTERS.md                          \
  CONTRIBUTE.md                                  \
  CURL-DISABLE.md                                \
  CURLDOWN.md                                    \
  DEPRECATE.md                                   \
  DISTROS.md                                     \
+ DYNBUF.md                                      \
  EARLY-RELEASE.md                               \
  ECH.md                                         \
  EXPERIMENTAL.md                                \
@@ -82,8 +71,11 @@ EXTRA_DIST =                                    \
  GOVERNANCE.md                                  \
  HELP-US.md                                     \
  HISTORY.md                                     \
+ HSTS.md                                        \
  HTTP-COOKIES.md                                \
+ HTTP2.md                                       \
  HTTP3.md                                       \
+ HYPER.md                                       \
  INSTALL                                        \
  INSTALL-CMAKE.md                               \
  INSTALL.md                                     \
@@ -92,7 +84,10 @@ EXTRA_DIST =                                    \
  KNOWN_BUGS                                     \
  MAIL-ETIQUETTE.md                              \
  MANUAL.md                                      \
+ MQTT.md                                        \
+ NEW-PROTOCOL.md                                \
  options-in-versions                            \
+ PARALLEL-TRANSFERS.md                          \
  README.md                                      \
  RELEASE-PROCEDURE.md                           \
  RUSTLS.md                                      \
@@ -101,11 +96,13 @@ EXTRA_DIST =                                    \
  SPONSORS.md                                    \
  SSL-PROBLEMS.md                                \
  SSLCERTS.md                                    \
- THANKS TODO                                    \
+ THANKS                                         \
+ TODO                                           \
  TheArtOfHttpScripting.md                       \
  URL-SYNTAX.md                                  \
  VERSIONS.md                                    \
- VULN-DISCLOSURE-POLICY.md
+ VULN-DISCLOSURE-POLICY.md                      \
+ WEBSOCKET.md
 
 CD2NROFF = $(top_srcdir)/scripts/cd2nroff $< >$@
 

@@ -142,9 +142,9 @@ endif()
 
 option(CURL_WERROR "Turn compiler warnings into errors" OFF)
 option(PICKY_COMPILER "Enable picky compiler options" ON)
-option(BUILD_CURL_EXE "Build curl executable" ON)
-option(BUILD_SHARED_LIBS "Build shared libraries" ON)
-option(BUILD_STATIC_LIBS "Build static libraries" OFF)
+option(BUILD_CURL_EXE "Build curl executable" OFF)
+option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
+option(BUILD_STATIC_LIBS "Build static libraries" ON)
 option(BUILD_STATIC_CURL "Build curl executable with static libcurl" OFF)
 option(ENABLE_ARES "Enable c-ares support" OFF)
 option(CURL_DISABLE_INSTALL "Disable installation targets" OFF)
@@ -225,11 +225,12 @@ elseif(BUILD_STATIC_CURL AND NOT BUILD_STATIC_LIBS)
 endif()
 
 # Lib flavour selected for curl tool
-if(BUILD_STATIC_CURL)
-  set(LIB_SELECTED_FOR_EXE ${LIB_STATIC})
-else()
-  set(LIB_SELECTED_FOR_EXE ${LIB_SHARED})
-endif()
+set(LIB_SELECTED_FOR_EXE ${LIB_STATIC})
+#if(BUILD_STATIC_CURL)
+#  set(LIB_SELECTED_FOR_EXE ${LIB_STATIC})
+#else()
+#  set(LIB_SELECTED_FOR_EXE ${LIB_SHARED})
+#endif()
 
 # Lib flavour selected for example and test programs.
 if(BUILD_SHARED_LIBS)
@@ -358,7 +359,7 @@ if(CURL_DISABLE_HTTP)
 endif()
 
 # Corresponds to HTTP_ONLY in lib/curl_setup.h
-option(HTTP_ONLY "Disable all protocols except HTTP (This overrides all CURL_DISABLE_* options)" OFF)
+option(HTTP_ONLY "Disable all protocols except HTTP (This overrides all CURL_DISABLE_* options)" ON)
 mark_as_advanced(HTTP_ONLY)
 
 if(HTTP_ONLY)
@@ -414,9 +415,9 @@ endif()
 
 find_package(Perl)
 
-option(BUILD_LIBCURL_DOCS "Build libcurl man pages" ON)
-option(BUILD_MISC_DOCS "Build misc man pages (e.g. curl-config and mk-ca-bundle)" ON)
-option(ENABLE_CURL_MANUAL "Build the man page for curl and enable its -M/--manual option" ON)
+option(BUILD_LIBCURL_DOCS "Build libcurl man pages" OFF)
+option(BUILD_MISC_DOCS "Build misc man pages (e.g. curl-config and mk-ca-bundle)" OFF)
+option(ENABLE_CURL_MANUAL "Build the man page for curl and enable its -M/--manual option" OFF)
 
 if(ENABLE_CURL_MANUAL OR BUILD_LIBCURL_DOCS)
   if(PERL_FOUND)
@@ -826,7 +827,8 @@ if(USE_ECH)
   endif()
 endif()
 
-option(USE_NGHTTP2 "Use nghttp2 library" ON)
+option(USE_NGHTTP2 "Use nghttp2 library" OFF)
+set(USE_NGHTTP2 OFF)
 if(USE_NGHTTP2)
   find_package(NGHTTP2)
   if(NGHTTP2_FOUND)
@@ -1062,7 +1064,8 @@ else()
 endif()
 
 # Check for libidn2
-option(USE_LIBIDN2 "Use libidn2 for IDN support" ON)
+option(USE_LIBIDN2 "Use libidn2 for IDN support" OFF)
+set(USE_LIBIDN2 OFF)
 set(HAVE_IDN2_H OFF)
 set(HAVE_LIBIDN2 OFF)
 if(USE_LIBIDN2 AND NOT USE_APPLE_IDN AND NOT USE_WIN32_IDN)
@@ -1082,13 +1085,15 @@ if(USE_LIBIDN2 AND NOT USE_APPLE_IDN AND NOT USE_WIN32_IDN)
 endif()
 
 # libpsl
-option(CURL_USE_LIBPSL "Use libpsl" ON)
+option(CURL_USE_LIBPSL "Use libpsl" OFF)
+set(CURL_USE_LIBPSL OFF)
 mark_as_advanced(CURL_USE_LIBPSL)
 set(USE_LIBPSL OFF)
 
 if(CURL_USE_LIBPSL)
   find_package(Libpsl)  # TODO: add REQUIRED to match autotools
   if(LIBPSL_FOUND)
+
     list(APPEND CURL_LIBS ${LIBPSL_LIBRARIES})
     list(APPEND LIBCURL_PC_REQUIRES_PRIVATE "libpsl")
     list(APPEND CMAKE_REQUIRED_INCLUDES "${LIBPSL_INCLUDE_DIRS}")
@@ -1100,7 +1105,7 @@ if(CURL_USE_LIBPSL)
 endif()
 
 # libssh2
-option(CURL_USE_LIBSSH2 "Use libssh2" ON)  # FIXME: default is OFF in autotools
+option(CURL_USE_LIBSSH2 "Use libssh2" OFF)  # FIXME: default is OFF in autotools
 mark_as_advanced(CURL_USE_LIBSSH2)
 set(USE_LIBSSH2 OFF)
 

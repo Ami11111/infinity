@@ -24,7 +24,6 @@
 
 #include "curl_setup.h"
 
-#include "timeval.h"
 #include "splay.h"
 
 /*
@@ -34,7 +33,7 @@
  *  zero          : when i is equal   to   j
  *  positive when : when i is larger  than j
  */
-#define compare(i,j) Curl_timediff_us(i,j)
+#define compare(i,j) Curl_splaycomparekeys((i),(j))
 
 /*
  * Splay using the key i (which may or may not be in the tree.) The starting
@@ -46,12 +45,12 @@ struct Curl_tree *Curl_splay(struct curltime i,
   struct Curl_tree N, *l, *r, *y;
 
   if(!t)
-    return NULL;
+    return t;
   N.smaller = N.larger = NULL;
   l = r = &N;
 
   for(;;) {
-    timediff_t comp = compare(i, t->key);
+    long comp = compare(i, t->key);
     if(comp < 0) {
       if(!t->smaller)
         break;
@@ -107,11 +106,11 @@ struct Curl_tree *Curl_splayinsert(struct curltime i,
     ~0, -1
   }; /* will *NEVER* appear */
 
-  DEBUGASSERT(node);
+  if(!node)
+    return t;
 
   if(t) {
     t = Curl_splay(i, t);
-    DEBUGASSERT(t);
     if(compare(i, t->key) == 0) {
       /* There already exists a node in the tree with the very same key. Build
          a doubly-linked circular list of nodes. We add the new 'node' struct
@@ -167,7 +166,6 @@ struct Curl_tree *Curl_splaygetbest(struct curltime i,
 
   /* find smallest */
   t = Curl_splay(tv_zero, t);
-  DEBUGASSERT(t);
   if(compare(i, t->key) < 0) {
     /* even the smallest is too big */
     *removed = NULL;
@@ -219,10 +217,8 @@ int Curl_splayremove(struct Curl_tree *t,
   }; /* will *NEVER* appear */
   struct Curl_tree *x;
 
-  if(!t)
+  if(!t || !removenode)
     return 1;
-
-  DEBUGASSERT(removenode);
 
   if(compare(KEY_NOTUSED, removenode->key) == 0) {
     /* Key set to NOTUSED means it is a subnode within a 'same' linked list
@@ -242,7 +238,6 @@ int Curl_splayremove(struct Curl_tree *t,
   }
 
   t = Curl_splay(removenode->key, t);
-  DEBUGASSERT(t);
 
   /* First make sure that we got the same root node as the one we want
      to remove, as otherwise we might be trying to remove a node that
@@ -273,7 +268,6 @@ int Curl_splayremove(struct Curl_tree *t,
       x = t->larger;
     else {
       x = Curl_splay(removenode->key, t->smaller);
-      DEBUGASSERT(x);
       x->larger = t->larger;
     }
   }
@@ -281,17 +275,4 @@ int Curl_splayremove(struct Curl_tree *t,
   *newroot = x; /* store new root pointer */
 
   return 0;
-}
-
-/* set and get the custom payload for this tree node */
-void Curl_splayset(struct Curl_tree *node, void *payload)
-{
-  DEBUGASSERT(node);
-  node->ptr = payload;
-}
-
-void *Curl_splayget(struct Curl_tree *node)
-{
-  DEBUGASSERT(node);
-  return node->ptr;
 }

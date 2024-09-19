@@ -132,6 +132,9 @@ my $ftp_ipv6;       # set if FTP server has IPv6 support
 
 my $resolver;       # name of the resolver backend (for human presentation)
 
+my $has_textaware;  # set if running on a system that has a text mode concept
+                    # on files. Windows for example
+
 my %skipped;    # skipped{reason}=counter, reasons for skip
 my @teststat;   # teststat[testnum]=reason, reasons for skip
 my %disabled_keywords;  # key words of tests to skip
@@ -140,8 +143,6 @@ my %enabled_keywords;   # key words of tests to run
 my %disabled;           # disabled test cases
 my %ignored;            # ignored results of test cases
 my %ignoretestcodes;    # if test results are to be ignored
-
-my $passedign;   # tests passed with results ignored
 
 my $timestats;   # time stamping and stats generation
 my $fullstats;   # show time stats for every single test
@@ -328,8 +329,8 @@ if ($ENV{"NGHTTPX"}) {
 my $disttests = "";
 sub get_disttests {
     # If a non-default $TESTDIR is being used there may not be any
-    # Makefile.am in which case there's nothing to do.
-    open(my $dh, "<", "$TESTDIR/Makefile.am") or return;
+    # Makefile.inc in which case there's nothing to do.
+    open(my $dh, "<", "$TESTDIR/Makefile.inc") or return;
     while(<$dh>) {
         chomp $_;
         if(($_ =~ /^#/) ||($_ !~ /test/)) {
@@ -534,8 +535,9 @@ sub checksystemfeatures {
             }
             if($curl =~ /win32|Windows|mingw(32|64)/) {
                 # This is a Windows MinGW build or native build, we need to use
-                # Windows-style path.
+                # Win32-style path.
                 $pwd = sys_native_current_path();
+                $has_textaware = 1;
                 $feature{"win32"} = 1;
                 # set if built with MinGW (as opposed to MinGW-w64)
                 $feature{"MinGW"} = 1 if ($curl =~ /-pc-mingw32/);
@@ -576,11 +578,6 @@ sub checksystemfeatures {
                $feature{"OpenSSL"} = 1;
                $feature{"SSLpinning"} = 1;
            }
-           elsif ($libcurl =~ /\squictls\b/i) {
-               # OpenSSL compatible API
-               $feature{"OpenSSL"} = 1;
-               $feature{"SSLpinning"} = 1;
-           }
            elsif ($libcurl =~ /\smbedTLS\b/i) {
                $feature{"mbedtls"} = 1;
                $feature{"SSLpinning"} = 1;
@@ -595,15 +592,6 @@ sub checksystemfeatures {
             if ($libcurl =~ /nghttp2/i) {
                 # nghttp2 supports h2c, hyper does not
                 $feature{"h2c"} = 1;
-            }
-            if ($libcurl =~ /AppleIDN/) {
-                $feature{"AppleIDN"} = 1;
-            }
-            if ($libcurl =~ /WinIDN/) {
-                $feature{"WinIDN"} = 1;
-            }
-            if ($libcurl =~ /libidn2/) {
-                $feature{"libidn2"} = 1;
             }
             if ($libcurl =~ /libssh2/i) {
                 $feature{"libssh2"} = 1;
@@ -694,7 +682,7 @@ sub checksystemfeatures {
                 # 'https-proxy' is used as "server" so consider it a protocol
                 push @protocols, 'https-proxy';
             }
-            # Unicode support
+            # UNICODE support
             $feature{"Unicode"} = $feat =~ /Unicode/i;
             # Thread-safe init
             $feature{"threadsafe"} = $feat =~ /threadsafe/i;
@@ -838,9 +826,7 @@ sub checksystemfeatures {
     }
 
     my $hostname=join(' ', runclientoutput("hostname"));
-    chomp $hostname;
     my $hosttype=join(' ', runclientoutput("uname -a"));
-    chomp $hosttype;
     my $hostos=$^O;
 
     # display summary information about curl and the test host
@@ -849,10 +835,9 @@ sub checksystemfeatures {
             "* $libcurl\n",
             "* Features: $feat\n",
             "* Disabled: $dis\n",
-            "* Host: $hostname\n",
-            "* System: $hosttype\n",
-            "* OS: $hostos\n",
-            "* Perl: $^V ($^X)\n");
+            "* Host: $hostname",
+            "* System: $hosttype",
+            "* OS: $hostos\n");
 
     if($jobs) {
         # Only show if not the default for now
@@ -1049,7 +1034,7 @@ sub singletest_shouldrun {
     my @what;  # what features are needed
 
     if($disttests !~ /test$testnum(\W|\z)/ ) {
-        logmsg "Warning: test$testnum not present in tests/data/Makefile.am\n";
+        logmsg "Warning: test$testnum not present in tests/data/Makefile.inc\n";
     }
     if($disabled{$testnum}) {
         if(!$run_disabled) {
@@ -1201,12 +1186,6 @@ sub singletest_count {
     return 0;
 }
 
-# Make sure all line endings in the array are the same: CRLF
-sub normalize_text {
-    my ($ref) = @_;
-    s/\r\n/\n/g for @$ref;
-    s/\n/\r\n/g for @$ref;
-}
 
 #######################################################################
 # Verify test succeeded
@@ -1265,9 +1244,12 @@ sub singletest_check {
 
         # get the mode attribute
         my $filemode=$hash{'mode'};
-        if($filemode && ($filemode eq "text")) {
-            normalize_text(\@validstdout);
-            normalize_text(\@actual);
+        if($filemode && ($filemode eq "text") && $has_textaware) {
+            # text mode when running on windows: fix line endings
+            s/\r\n/\n/g for @validstdout;
+            s/\n/\r\n/g for @validstdout;
+            s/\r\n/\n/g for @actual;
+            s/\n/\r\n/g for @actual;
         }
 
         if($hash{'nonewline'}) {
@@ -1320,11 +1302,12 @@ sub singletest_check {
             # text mode check in hyper-mode. Sometimes necessary if the stderr
             # data *looks* like HTTP and thus has gotten CRLF newlines
             # mistakenly
-            normalize_text(\@validstderr);
+            s/\r\n/\n/g for @validstderr;
         }
-        if($filemode && ($filemode eq "text")) {
-            normalize_text(\@validstderr);
-            normalize_text(\@actual);
+        if($filemode && ($filemode eq "text") && $has_textaware) {
+            # text mode when running on windows: fix line endings
+            s/\r\n/\n/g for @validstderr;
+            s/\n/\r\n/g for @validstderr;
         }
 
         if($hash{'nonewline'}) {
@@ -1416,8 +1399,10 @@ sub singletest_check {
                 my %replycheckpartattr = getpartattr("reply", "datacheck".$partsuffix);
                 # get the mode attribute
                 my $filemode=$replycheckpartattr{'mode'};
-                if($filemode && ($filemode eq "text")) {
-                    normalize_text(\@replycheckpart);
+                if($filemode && ($filemode eq "text") && $has_textaware) {
+                    # text mode when running on windows: fix line endings
+                    s/\r\n/\n/g for @replycheckpart;
+                    s/\n/\r\n/g for @replycheckpart;
                 }
                 if($replycheckpartattr{'nonewline'}) {
                     # Yes, we must cut off the final newline from the final line
@@ -1444,8 +1429,10 @@ sub singletest_check {
         }
         # get the mode attribute
         my $filemode=$replyattr{'mode'};
-        if($filemode && ($filemode eq "text")) {
-            normalize_text(\@reply);
+        if($filemode && ($filemode eq "text") && $has_textaware) {
+            # text mode when running on windows: fix line endings
+            s/\r\n/\n/g for @reply;
+            s/\n/\r\n/g for @reply;
         }
         if($replyattr{'crlf'} ||
            ($feature{"hyper"} && ($keywords{"HTTP"}
@@ -1457,12 +1444,6 @@ sub singletest_check {
     if(!$replyattr{'nocheck'} && (@reply || $replyattr{'sendzero'})) {
         # verify the received data
         my @out = loadarray($CURLOUT);
-
-        # get the mode attribute
-        my $filemode=$replyattr{'mode'};
-        if($filemode && ($filemode eq "text")) {
-            normalize_text(\@out);
-        }
         $res = compare($runnerid, $testnum, $testname, "data", \@out, \@reply);
         if ($res) {
             return -1;
@@ -1483,8 +1464,6 @@ sub singletest_check {
         }
         for my $line (@upload) {
             subbase64(\$line);
-            subsha256base64file(\$line);
-            substrippemfile(\$line);
         }
 
         # verify uploaded data
@@ -1494,14 +1473,6 @@ sub singletest_check {
             for(@out) {
                 eval $strip;
             }
-        }
-        if($hash{'crlf'}) {
-            subnewlines(1, \$_) for @upload;
-        }
-        if($hash{'nonewline'}) {
-            # Yes, we must cut off the final newline from the final line
-            # of the upload data
-            chomp($upload[-1]);
         }
 
         $res = compare($runnerid, $testnum, $testname, "upload", \@out, \@upload);
@@ -1597,9 +1568,10 @@ sub singletest_check {
             my @stripfilepar = getpart("verify", "stripfile".$partsuffix);
 
             my $filemode=$hash{'mode'};
-            if($filemode && ($filemode eq "text")) {
-                normalize_text(\@outfile);
-                normalize_text(\@generated);
+            if($filemode && ($filemode eq "text") && $has_textaware) {
+                # text mode when running on windows: fix line endings
+                s/\r\n/\n/g for @outfile;
+                s/\n/\r\n/g for @outfile;
             }
             if($hash{'crlf'} ||
                ($feature{"hyper"} && ($keywords{"HTTP"}
@@ -1793,8 +1765,6 @@ sub singletest_success {
     }
 
     if($errorreturncode==2) {
-        # ignored test success
-        $passedign .= "$testnum ";
         logmsg "Warning: test$testnum result is ignored, but passed!\n";
     }
 }
@@ -2595,21 +2565,6 @@ if(!$listonly) {
 }
 
 #######################################################################
-# Output information about the curl build
-#
-if(!$listonly) {
-    if(open(my $fd, "<", "buildinfo.txt")) {
-        while(my $line = <$fd>) {
-            chomp $line;
-            if($line && $line !~ /^#/) {
-                logmsg("* buildinfo.$line\n");
-            }
-        }
-        close($fd);
-    }
-}
-
-#######################################################################
 # initialize configuration needed to set up servers
 # TODO: rearrange things so this can be called only in runner_init()
 #
@@ -2660,10 +2615,6 @@ sub disabledtests {
                 exit 2;
             }
         }
-    }
-    else {
-        print STDERR "Cannot open $file, exiting\n";
-        exit 3;
     }
 }
 
@@ -3113,18 +3064,10 @@ sub testnumdetails {
 }
 
 if($total) {
-    if($passedign) {
-        my $sorted = numsortwords($passedign);
-        logmsg "::group::Passed Ignored Test details\n";
-        testnumdetails("PASSED-IGNORED", $sorted);
-        logmsg "IGNORED: passed tests: $sorted\n";
-        logmsg "::endgroup::\n";
-    }
-
     if($failedign) {
-        my $sorted = numsortwords($failedign);
-        testnumdetails("FAIL-IGNORED", $sorted);
-        logmsg "IGNORED: failed tests: $sorted\n";
+        my $failedignsorted = numsortwords($failedign);
+        testnumdetails("FAIL-IGNORED", $failedignsorted);
+        logmsg "IGNORED: failed tests: $failedignsorted\n";
     }
     logmsg sprintf("TESTDONE: $ok tests out of $total reported OK: %d%%\n",
                    $ok/$total*100);

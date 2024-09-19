@@ -552,32 +552,26 @@ class Env:
     def ci_run(self) -> bool:
         return "CURL_CI" in os.environ
 
-    def port_for(self, alpn_proto: Optional[str] = None):
+    def authority_for(self, domain: str, alpn_proto: Optional[str] = None):
         if alpn_proto is None or \
                 alpn_proto in ['h2', 'http/1.1', 'http/1.0', 'http/0.9']:
-            return self.https_port
+            return f'{domain}:{self.https_port}'
         if alpn_proto in ['h3']:
-            return self.h3_port
-        return self.http_port
+            return f'{domain}:{self.h3_port}'
+        return f'{domain}:{self.http_port}'
 
-    def authority_for(self, domain: str, alpn_proto: Optional[str] = None):
-        return f'{domain}:{self.port_for(alpn_proto=alpn_proto)}'
-
-    def make_data_file(self, indir: str, fname: str, fsize: int,
-                       line_length: int = 1024) -> str:
-        if line_length < 11:
-            raise 'line_length less than 11 not supported'
+    def make_data_file(self, indir: str, fname: str, fsize: int) -> str:
         fpath = os.path.join(indir, fname)
         s10 = "0123456789"
-        s = round((line_length / 10) + 1) * s10
-        s = s[0:line_length-11]
+        s = (101 * s10) + s10[0:3]
         with open(fpath, 'w') as fd:
-            for i in range(int(fsize / line_length)):
+            for i in range(int(fsize / 1024)):
                 fd.write(f"{i:09d}-{s}\n")
-            remain = int(fsize % line_length)
+            remain = int(fsize % 1024)
             if remain != 0:
-                i = int(fsize / line_length) + 1
-                fd.write(f"{i:09d}-{s}"[0:remain-1] + "\n")
+                i = int(fsize / 1024) + 1
+                s = f"{i:09d}-{s}\n"
+                fd.write(s[0:remain])
         return fpath
 
     def make_clients(self):

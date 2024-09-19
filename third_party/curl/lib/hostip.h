@@ -99,11 +99,11 @@ struct Curl_dns_entry {
 #endif
   /* timestamp == 0 -- permanent CURLOPT_RESOLVE entry (does not time out) */
   time_t timestamp;
-  /* reference counter, entry is freed on reaching 0 */
-  size_t refcount;
+  /* use-counter, use Curl_resolv_unlock to release reference */
+  long inuse;
   /* hostname port number that resolved to addr. */
   int hostport;
-  /* hostname that resolved to addr. may be NULL (Unix domain sockets). */
+  /* hostname that resolved to addr. may be NULL (unix domain sockets). */
   char hostname[1];
 };
 
@@ -113,7 +113,7 @@ bool Curl_host_is_ipnum(const char *hostname);
  * Curl_resolv() returns an entry with the info for the specified host
  * and port.
  *
- * The returned data *MUST* be "released" with Curl_resolv_unlink() after
+ * The returned data *MUST* be "unlocked" with Curl_resolv_unlock() after
  * use, or we will leak memory!
  */
 /* return codes */
@@ -161,9 +161,9 @@ struct Curl_addrinfo *Curl_getaddrinfo(struct Curl_easy *data,
                                        int *waitp);
 
 
-/* unlink a dns entry, potentially shared with a cache */
-void Curl_resolv_unlink(struct Curl_easy *data,
-                        struct Curl_dns_entry **pdns);
+/* unlock a previously resolved dns entry */
+void Curl_resolv_unlock(struct Curl_easy *data,
+                        struct Curl_dns_entry *dns);
 
 /* init a new dns cache */
 void Curl_init_dnscache(struct Curl_hash *hash, size_t hashsize);
@@ -199,7 +199,7 @@ void Curl_printable_address(const struct Curl_addrinfo *ip,
  *
  * Returns the Curl_dns_entry entry pointer or NULL if not in the cache.
  *
- * The returned data *MUST* be "released" with Curl_resolv_unlink() after
+ * The returned data *MUST* be "unlocked" with Curl_resolv_unlock() after
  * use, or we will leak memory!
  */
 struct Curl_dns_entry *
@@ -209,13 +209,12 @@ Curl_fetch_addr(struct Curl_easy *data,
 
 /*
  * Curl_cache_addr() stores a 'Curl_addrinfo' struct in the DNS cache.
- * @param permanent   iff TRUE, entry will never become stale
+ *
  * Returns the Curl_dns_entry entry pointer or NULL if the storage failed.
  */
 struct Curl_dns_entry *
 Curl_cache_addr(struct Curl_easy *data, struct Curl_addrinfo *addr,
-                const char *hostname, size_t hostlen, int port,
-                bool permanent);
+                const char *hostname, size_t hostlen, int port);
 
 #ifndef INADDR_NONE
 #define CURL_INADDR_NONE (in_addr_t) ~0

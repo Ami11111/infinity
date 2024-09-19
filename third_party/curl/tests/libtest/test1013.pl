@@ -37,13 +37,14 @@ my $curl_protocols="";
 open(CURL, "$ARGV[1]") || die "Can't get curl $what list\n";
 while( <CURL> )
 {
-    $curl_protocols = $_ if ( /$what:/i );
+    $curl_protocols = lc($_) if ( /$what:/i );
 }
 close CURL;
 
 $curl_protocols =~ s/\r//;
 $curl_protocols =~ /\w+: (.*)$/;
 @curl = split / /,$1;
+@curl = sort @curl;
 
 # Read the output of curl-config
 my @curl_config;
@@ -51,16 +52,12 @@ open(CURLCONFIG, "sh $ARGV[0] --$what|") || die "Can't get curl-config $what lis
 while( <CURLCONFIG> )
 {
     chomp;
-    $_ = lc($_) if($what eq "protocols");  # accept uppercase protocols in curl-config
-    push @curl_config, $_;
+    # ignore curl-config --features not in curl's feature list
+    push @curl_config, lc($_);
 }
 close CURLCONFIG;
 
-# allow order mismatch to handle autotools builds with no 'sort -f' available
-if($what eq "features") {
-    @curl = sort @curl;
-    @curl_config = sort @curl_config;
-}
+@curl_config = sort @curl_config;
 
 my $curlproto = join ' ', @curl;
 my $curlconfigproto = join ' ', @curl_config;
