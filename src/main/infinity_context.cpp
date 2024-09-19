@@ -31,6 +31,7 @@ import variables;
 // import python_instance;
 import status;
 import infinity_exception;
+import wal_manager;
 
 namespace infinity {
 
@@ -91,7 +92,7 @@ void InfinityContext::Init(const SharedPtr<String> &config_path, bool admin_flag
     }
 }
 
-Status InfinityContext::ChangeRole(NodeRole target_role, const String& node_name, String node_ip, i16 node_port) {
+Status InfinityContext::ChangeRole(NodeRole target_role, const String &node_name, String node_ip, i16 node_port) {
     NodeRole current_role = GetServerRole();
     if (current_role == target_role) {
         return Status::InvalidNodeRole(fmt::format("Infinity is already the role of {}", ToString(current_role)));
@@ -115,26 +116,26 @@ Status InfinityContext::ChangeRole(NodeRole target_role, const String& node_name
                 }
                 case NodeRole::kLeader: {
                     storage_->SetStorageMode(StorageMode::kWritable);
-                    if(cluster_manager_ != nullptr) {
+                    if (cluster_manager_ != nullptr) {
                         UnrecoverableError("cluster manager was initialized before.");
                     }
                     cluster_manager_ = MakeUnique<ClusterManager>(storage_->txn_manager());
                     Status init_status = cluster_manager_->InitAsLeader(node_name);
-                    if(!init_status.ok()) {
+                    if (!init_status.ok()) {
                         return init_status;
                     }
                     break;
                 }
                 case NodeRole::kFollower: {
                     storage_->SetStorageMode(StorageMode::kReadable);
-                    if(cluster_manager_ != nullptr) {
+                    if (cluster_manager_ != nullptr) {
                         UnrecoverableError("cluster manager was initialized before.");
                     }
 
                     // TODO: connect to leader;
                     cluster_manager_ = MakeUnique<ClusterManager>(storage_->txn_manager());
                     Status init_status = cluster_manager_->InitAsFollower(node_name, node_ip, node_port);
-                    if(!init_status.ok()) {
+                    if (!init_status.ok()) {
                         cluster_manager_->UnInit();
                         cluster_manager_.reset();
                         return init_status;
@@ -143,14 +144,14 @@ Status InfinityContext::ChangeRole(NodeRole target_role, const String& node_name
                 }
                 case NodeRole::kLearner: {
                     storage_->SetStorageMode(StorageMode::kReadable);
-                    if(cluster_manager_ != nullptr) {
+                    if (cluster_manager_ != nullptr) {
                         UnrecoverableError("cluster manager was initialized before.");
                     }
 
                     // TODO: connect to leader;
                     cluster_manager_ = MakeUnique<ClusterManager>(storage_->txn_manager());
                     Status init_status = cluster_manager_->InitAsLearner(node_name, node_ip, node_port);
-                    if(!init_status.ok()) {
+                    if (!init_status.ok()) {
                         cluster_manager_->UnInit();
                         cluster_manager_.reset();
                         return init_status;
@@ -198,7 +199,7 @@ Status InfinityContext::ChangeRole(NodeRole target_role, const String& node_name
         case NodeRole::kLeader: {
             switch (target_role) {
                 case NodeRole::kAdmin: {
-                    if(cluster_manager_ == nullptr) {
+                    if (cluster_manager_ == nullptr) {
                         UnrecoverableError("cluster manager wasn't valid.");
                     }
                     // TODO: disconnect with all follower/learner
@@ -209,6 +210,8 @@ Status InfinityContext::ChangeRole(NodeRole target_role, const String& node_name
 
                     task_scheduler_->UnInit();
                     task_scheduler_.reset();
+
+                    StopThriftServers();
                     break;
                 }
                 default: {
@@ -222,7 +225,7 @@ Status InfinityContext::ChangeRole(NodeRole target_role, const String& node_name
         case NodeRole::kFollower: {
             switch (target_role) {
                 case NodeRole::kAdmin: {
-                    if(cluster_manager_ == nullptr) {
+                    if (cluster_manager_ == nullptr) {
                         UnrecoverableError("cluster manager wasn't valid.");
                     }
                     // TODO: disconnect from leader;
@@ -234,6 +237,8 @@ Status InfinityContext::ChangeRole(NodeRole target_role, const String& node_name
 
                     task_scheduler_->UnInit();
                     task_scheduler_.reset();
+
+                    StopThriftServers();
                     break;
                 }
                 case NodeRole::kStandalone: {
@@ -247,7 +252,7 @@ Status InfinityContext::ChangeRole(NodeRole target_role, const String& node_name
                     break;
                 }
                 case NodeRole::kLeader: {
-                    if(cluster_manager_ == nullptr) {
+                    if (cluster_manager_ == nullptr) {
                         UnrecoverableError("cluster manager wasn't valid.");
                     }
                     // TODO: disconnect from leader;
@@ -256,12 +261,12 @@ Status InfinityContext::ChangeRole(NodeRole target_role, const String& node_name
 
                     storage_->SetStorageMode(StorageMode::kWritable);
 
-                    if(cluster_manager_ != nullptr) {
+                    if (cluster_manager_ != nullptr) {
                         UnrecoverableError("cluster manager was initialized before.");
                     }
                     cluster_manager_ = MakeUnique<ClusterManager>(storage_->txn_manager());
                     Status init_status = cluster_manager_->InitAsLeader(node_name);
-                    if(!init_status.ok()) {
+                    if (!init_status.ok()) {
                         cluster_manager_->UnInit();
                         cluster_manager_.reset();
                         return init_status;
@@ -276,12 +281,20 @@ Status InfinityContext::ChangeRole(NodeRole target_role, const String& node_name
         }
     }
     SetServerRole(target_role);
-    return Status::OK();
+    StartThriftServers();
+
+    Status status = Status::OK();
+    if(target_role == NodeRole::kFollower or target_role == NodeRole::kLearner) {
+        status = cluster_manager_->RegisterToLeader();
+    } else if (target_role == NodeRole::kLeader) {
+        cluster_manager_->CheckHeartBeat();
+    }
+    return status;
 }
 
 bool InfinityContext::IsClusterRole() const {
     NodeRole node_role = GetServerRole();
-    if(node_role == NodeRole::kLeader or node_role == NodeRole::kFollower or node_role == NodeRole::kLearner) {
+    if (node_role == NodeRole::kLeader or node_role == NodeRole::kFollower or node_role == NodeRole::kLearner) {
         return true;
     } else {
         return false;
@@ -289,6 +302,8 @@ bool InfinityContext::IsClusterRole() const {
 }
 
 void InfinityContext::UnInit() {
+    StopThriftServers();
+
     NodeRole current_role = GetServerRole();
 
     switch (current_role) {
@@ -341,6 +356,37 @@ void InfinityContext::RestoreIndexThreadPoolToDefault() {
     inverting_thread_pool_.resize(4);
     commiting_thread_pool_.resize(2);
     hnsw_build_thread_pool_.resize(4);
+}
+
+void InfinityContext::AddThriftServerFn(std::function<void()> start_func, std::function<void()> stop_func) {
+    start_servers_func_ = start_func;
+    stop_servers_func_ = stop_func;
+}
+
+void InfinityContext::StartThriftServers() {
+    if (current_server_role_ == NodeRole::kUnInitialized) {
+        UnrecoverableError("Invalid node role");
+    }
+
+    if (current_server_role_ != NodeRole::kAdmin) {
+        if (start_servers_func_) {
+            start_servers_func_();
+        }
+    }
+}
+
+void InfinityContext::StopThriftServers() {
+    if (current_server_role_ == NodeRole::kUnInitialized) {
+        return ;
+    }
+
+    if (current_server_role_ != NodeRole::kAdmin) {
+        if (stop_servers_func_) {
+            stop_servers_func_();
+            start_servers_func_ = nullptr;
+            stop_servers_func_ = nullptr;
+        }
+    }
 }
 
 } // namespace infinity

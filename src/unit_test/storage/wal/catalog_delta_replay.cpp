@@ -622,7 +622,17 @@ TEST_P(CatalogDeltaReplayTest, replay_with_full_checkpoint) {
 
             txn_mgr->CommitTxn(txn_record3);
             EXPECT_EQ(table_entry->row_count(), 3ul);
+
+            usleep(100000); // Fix delta catalog can't finish flushing issue.
             WaitFlushDeltaOp(storage);
+        }
+        {
+            auto *txn = txn_mgr->BeginTxn(MakeUnique<String>("get table"));
+            auto [table_entry, table_status] = txn->GetTableByName(*db_name, *table_name);
+            EXPECT_TRUE(table_status.ok());
+
+            EXPECT_EQ(table_entry->row_count(), 3ul);
+            txn_mgr->CommitTxn(txn);
         }
         infinity::InfinityContext::instance().UnInit();
     }
@@ -670,7 +680,6 @@ TEST_P(CatalogDeltaReplayTest, replay_with_full_checkpoint) {
 }
 
 TEST_P(CatalogDeltaReplayTest, replay_compact_to_single_rollback) {
-    infinity::InfinityContext::instance().UnInit();
     String table_name = "tb1";
     config_path = nullptr;
     RemoveDbDirs();
