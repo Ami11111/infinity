@@ -87,6 +87,10 @@ if(ENABLE_CURLDEBUG)
   set_source_files_properties("../lib/curl_multibyte.c" PROPERTIES SKIP_UNITY_BUILD_INCLUSION ON)
 endif()
 
+message(status "############ ${CURL_CFILES}")
+message(status "%%%%%%%%%%%% ${CURLX_CFILES}")
+message(status "@@@@@@@@@@@@ ${CURL_HFILES}")
+
 add_executable(
   ${EXE_NAME}
   ${CURL_CFILES} ${CURLX_CFILES} ${CURL_HFILES}

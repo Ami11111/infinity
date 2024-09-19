@@ -506,6 +506,7 @@ if(WIN32 OR CURL_USE_SECTRANSP OR CURL_USE_SCHANNEL OR CURL_USE_MBEDTLS OR CURL_
   set(_openssl_default OFF)
 endif()
 cmake_dependent_option(CURL_USE_OPENSSL "Enable OpenSSL for SSL/TLS" ${_openssl_default} CURL_ENABLE_SSL OFF)
+set(CURL_USE_OPENSSL OFF)
 option(USE_OPENSSL_QUIC "Use OpenSSL and nghttp3 libraries for HTTP/3 support" OFF)
 if(USE_OPENSSL_QUIC AND NOT CURL_USE_OPENSSL)
   message(WARNING "OpenSSL QUIC has been requested, but without enabling OpenSSL. Will not enable QUIC.")
@@ -528,7 +529,7 @@ if(_enabled_ssl_options_count GREATER 1)
 elseif(_enabled_ssl_options_count EQUAL 0)
   set(CURL_DISABLE_HSTS ON)
 endif()
-
+message(status "++++++${_enabled_ssl_options_count}")
 if(CURL_USE_SCHANNEL)
   set(_ssl_enabled ON)
   set(USE_SCHANNEL ON)  # Windows native SSL/TLS support
