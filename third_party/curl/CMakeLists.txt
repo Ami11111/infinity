@@ -1802,23 +1802,10 @@ cmake_dependent_option(BUILD_TESTING "Build tests"
   ON "PERL_FOUND;NOT CURL_DISABLE_TESTS"
   OFF)
 
-if(HAVE_MANUAL_TOOLS)
-  add_subdirectory(docs)
-endif()
-
 add_subdirectory(lib)
 
 if(BUILD_CURL_EXE)
   add_subdirectory(src)
-endif()
-
-option(BUILD_EXAMPLES "Build libcurl examples" OFF)
-if(BUILD_EXAMPLES)
-  add_subdirectory(docs/examples)
-endif()
-
-if(BUILD_TESTING)
-  add_subdirectory(tests)
 endif()
 
 # Helper to populate a list (_items) with a label when conditions
